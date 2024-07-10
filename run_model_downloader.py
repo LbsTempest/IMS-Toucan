@@ -67,7 +67,7 @@ def download_models():
     print("Downloading Baseline Model (Prompting)")
     os.makedirs(os.path.join(MODELS_DIR, "ToucanTTS_Baseline"), exist_ok=True)
     filename, headers = urllib.request.urlretrieve(
-        url="https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/v2.p/baseline.pt",
+        url="https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/2.p/baseline.pt",
         filename=os.path.abspath(os.path.join(MODELS_DIR, "ToucanTTS_Baseline", "best.pt")),
         reporthook=report)
     
@@ -75,7 +75,7 @@ def download_models():
     print("Downloading Proposed Model (Prompting)")
     os.makedirs(os.path.join(MODELS_DIR, "ToucanTTS_Proposed"), exist_ok=True)
     filename, headers = urllib.request.urlretrieve(
-        url="https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/v2.p/proposed.pt",
+        url="https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/2.p/proposed.pt",
         filename=os.path.abspath(os.path.join(MODELS_DIR, "ToucanTTS_Proposed", "best.pt")),
         reporthook=report)
 
