@@ -65,7 +65,7 @@ class TTSWebUI:
                                   theme="default",
                                   allow_flagging="never",
                                   article=article)
-        self.iface.launch(enable_queue=True)
+        self.iface.launch()
 
     def read(self, input, prompt, speaker):
         self.tts_interface.set_language("en")
