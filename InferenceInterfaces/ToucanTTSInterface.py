@@ -23,7 +23,7 @@ class ToucanTTSInterface(torch.nn.Module):
 
     def __init__(self,
                  device="cpu",  # device that everything computes on. If a cuda device is available, this can speed things up by an order of magnitude.
-                 tts_model_path=os.path.join(MODELS_DIR, f"ToucanTTS_Meta", "best.pt"),  # path to the ToucanTTS checkpoint or just a shorthand if run standalone
+                 tts_model_path=os.path.join(MODELS_DIR, "ToucanTTS_Meta", "best.pt"),  # path to the ToucanTTS checkpoint or just a shorthand if run standalone
                  embedding_model_path=None,
                  vocoder_model_path=None,  # path to the hifigan/avocodo/bigvgan checkpoint
                  faster_vocoder=True,  # whether to use the quicker HiFiGAN or the better BigVGAN
@@ -37,6 +37,8 @@ class ToucanTTSInterface(torch.nn.Module):
         if not tts_model_path.endswith(".pt"):
             # default to shorthand system
             tts_model_path = os.path.join(MODELS_DIR, f"ToucanTTS_{tts_model_path}", "best.pt")
+
+        # * 声码器
         if vocoder_model_path is None:
             if faster_vocoder:
                 vocoder_model_path = os.path.join(MODELS_DIR, "Avocodo", "best.pt")
@@ -44,17 +46,17 @@ class ToucanTTSInterface(torch.nn.Module):
                 vocoder_model_path = os.path.join(MODELS_DIR, "BigVGAN", "best.pt")
 
         ################################
-        #   build text to phone        #
+        #  * build text to phone       #
         ################################
         self.text2phone = ArticulatoryCombinedTextFrontend(language=language, add_silence_to_end=True)
 
         ################################
-        #   load weights               #
+        #  * load weights              #
         ################################
         checkpoint = torch.load(tts_model_path, map_location='cpu')
 
         ################################
-        #   load phone to mel model    #
+        #  * load phone to mel model   #
         ################################
         self.use_lang_id = True
         self.use_sent_emb = False
@@ -105,7 +107,7 @@ class ToucanTTSInterface(torch.nn.Module):
         self.phone2mel = self.phone2mel.to(torch.device(device))
 
         #################################
-        #  load mel to style models     #
+        #  * load mel to style models   #
         #################################
         if embedding_model_path is not None:
             self.style_embedding_function = StyleEmbedding()
@@ -114,11 +116,11 @@ class ToucanTTSInterface(torch.nn.Module):
             self.style_embedding_function.to(self.device)
         else:
             self.style_embedding_function = None
-        
+
         self.xvect_model = xvect_model if xvect_model is not None else None
 
         #################################
-        #  load sent emb extractor     #
+        #  * load sent emb extractor    #
         #################################
         self.sentence_embedding_extractor = None
         if self.use_sent_emb:
@@ -126,9 +128,9 @@ class ToucanTTSInterface(torch.nn.Module):
                 self.sentence_embedding_extractor = sent_emb_extractor
             else:
                 raise KeyError("Please specify a sentence embedding extractor.")
-            
+
         #################################
-        #  load word emb extractor     #
+        #  * load word emb extractor    #
         #################################
         self.word_embedding_extractor = None
         if self.use_word_emb:
@@ -138,7 +140,7 @@ class ToucanTTSInterface(torch.nn.Module):
                 raise KeyError("Please specify a word embedding extractor.")
 
         ################################
-        #  load mel to wave model      #
+        #  * load mel to wave model    #
         ################################
         if faster_vocoder:
             self.mel2wav = HiFiGANGenerator(path_to_weights=vocoder_model_path).to(torch.device(device))
@@ -147,7 +149,7 @@ class ToucanTTSInterface(torch.nn.Module):
         self.mel2wav.remove_weight_norm()
 
         ################################
-        #  set defaults                #
+        #  * set defaults              #
         ################################
         try:
             self.default_utterance_embedding = checkpoint["default_emb"].to(self.device)
@@ -192,8 +194,11 @@ class ToucanTTSInterface(torch.nn.Module):
             spec_len = torch.LongTensor([len(spec)])
             self.default_utterance_embedding = self.style_embedding_function(spec.unsqueeze(0).to(self.device),
                                                                             spec_len.unsqueeze(0).to(self.device)).squeeze()
-        
+
     def set_sentence_embedding(self, prompt:str, silent=True):
+        """
+        * Embed prompt into sentence embedding space.
+        """
         if self.use_sent_emb:
             if not silent:
                 print(f"Using sentence embedding of given prompt: {prompt}")
@@ -201,7 +206,7 @@ class ToucanTTSInterface(torch.nn.Module):
             self.sentence_embedding = prompt_embedding
         else:
             print("Skipping setting sentence embedding.")
-    
+
     def set_speaker_id(self, id:int):
         self.default_speaker_id = torch.LongTensor([id]).to(self.device)
 
@@ -248,6 +253,7 @@ class ToucanTTSInterface(torch.nn.Module):
                                    lower values decrease variance of the energy curve.
         """
         with torch.inference_mode():
+            # * phonemizer with eSpeak-NG as backend.
             phones = self.text2phone.string_to_tensor(text, input_phonemes=input_is_phones).to(torch.device(self.device))
             if self.use_sent_emb and self.sentence_embedding is None:
                 if not silent:
@@ -337,6 +343,7 @@ class ToucanTTSInterface(torch.nn.Module):
             else:
                 plt.savefig(f"{plot_name}.png")
                 return wave, f"{plot_name}.png"
+            
         if view_contours:
             from Utility.utils import cumsum_durations
             fig, ax = plt.subplots(figsize=(8,4))
@@ -348,7 +355,7 @@ class ToucanTTSInterface(torch.nn.Module):
                          x_axis=None,
                          hop_length=256)
             ax.yaxis.set_visible(False)
-            #ax.set_ylim(200, 4000)
+            # ax.set_ylim(200, 4000)
             duration_splits, label_positions = cumsum_durations(durations.cpu().numpy())
             ax.xaxis.grid(True, which='minor')
             ax.set_xticks(label_positions, minor=False)
@@ -370,32 +377,33 @@ class ToucanTTSInterface(torch.nn.Module):
                     prev_word_boundary = word_boundary
                 word_label_positions.append((duration_splits[-1] + prev_word_boundary) / 2)
 
-                #secondary_ax = ax.secondary_xaxis('bottom')
-                #secondary_ax.tick_params(axis="x", direction="out", pad=24)
-                #secondary_ax.set_xticks(word_label_positions, minor=False)
-                #secondary_ax.set_xticklabels(text.split())
-                #secondary_ax.tick_params(axis='x', colors='black', labelsize=16)
-                #secondary_ax.xaxis.label.set_color('black')
+                # secondary_ax = ax.secondary_xaxis('bottom')
+                # secondary_ax.tick_params(axis="x", direction="out", pad=24)
+                # secondary_ax.set_xticks(word_label_positions, minor=False)
+                # secondary_ax.set_xticklabels(text.split())
+                # secondary_ax.tick_params(axis='x', colors='black', labelsize=16)
+                # secondary_ax.xaxis.label.set_color('black')
             except ValueError:
                 ax.set_title(text)
             except IndexError:
                 ax.set_title(text)
 
-            #ax.vlines(x=duration_splits, colors="black", linestyles="dotted", ymin=0.0, ymax=8000, linewidth=1.0)
-            #ax.vlines(x=word_boundaries, colors="black", linestyles="solid", ymin=0.0, ymax=8000, linewidth=1.2)
+            # ax.vlines(x=duration_splits, colors="black", linestyles="dotted", ymin=0.0, ymax=8000, linewidth=1.0)
+            # ax.vlines(x=word_boundaries, colors="black", linestyles="solid", ymin=0.0, ymax=8000, linewidth=1.2)
             pitch_array = pitch.cpu().numpy()
             for pitch_index, xrange in enumerate(zip(duration_splits[:-1], duration_splits[1:])):
                 if pitch_array[pitch_index] != 0:
                     ax.hlines(pitch_array[pitch_index] * 1000, xmin=xrange[0], xmax=xrange[1], color="red",
                                  linestyles="solid", linewidth=5)
-            #energy_array = energy.cpu().numpy()
-            #for energy_index, xrange in enumerate(zip(duration_splits[:-1], duration_splits[1:])):
-             #   if energy_array[energy_index] != 0:
-              #      ax.hlines(energy_array[energy_index] * 1000, xmin=xrange[0], xmax=xrange[1], color="orange",
-               #                  linestyles="solid", linewidth=2.5)
+            # energy_array = energy.cpu().numpy()
+            # for energy_index, xrange in enumerate(zip(duration_splits[:-1], duration_splits[1:])):
+            #   if energy_array[energy_index] != 0:
+            #      ax.hlines(energy_array[energy_index] * 1000, xmin=xrange[0], xmax=xrange[1], color="orange",
+            #                  linestyles="solid", linewidth=2.5)
             plt.subplots_adjust(left=0.05, bottom=0.12, right=0.95, top=.9, wspace=0.0, hspace=0.0)
             plt.savefig(f"{plot_name}.pdf", format="pdf")
             plt.close()
+            
         return wave
 
     def read_to_file(self,
