@@ -235,6 +235,7 @@ class ToucanTTS(torch.nn.Module):
             else:
                 utterance_embedding = torch.nn.functional.normalize(utterance_embedding)
 
+        # * prompt
         if not self.use_sent_embed:
             sentence_embedding = None
             utterance_embedding = self.speaker_embedding_adaptation(utterance_embedding)
