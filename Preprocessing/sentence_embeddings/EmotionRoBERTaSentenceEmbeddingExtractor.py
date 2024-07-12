@@ -8,8 +8,8 @@ class EmotionRoBERTaSentenceEmbeddingExtractor(SentenceEmbeddingExtractor):
         super().__init__()
         if cache_dir:
             self.cache_dir = cache_dir
-        self.tokenizer = RobertaTokenizerFast.from_pretrained('j-hartmann/emotion-english-distilroberta-base', cache_dir=self.cache_dir)
-        self.model = RobertaModel.from_pretrained("j-hartmann/emotion-english-distilroberta-base", cache_dir=self.cache_dir).to(device)
+        self.tokenizer = RobertaTokenizerFast.from_pretrained('Models/j-hartmann/emotion-english-distilroberta-base', cache_dir=self.cache_dir)
+        self.model = RobertaModel.from_pretrained("Models/j-hartmann/emotion-english-distilroberta-base", cache_dir=self.cache_dir).to(device)
         assert pooling in ["cls", "last_mean", "second_to_last_mean"]
         self.pooling = pooling
         self.device = device

@@ -20,7 +20,7 @@ if __name__ == '__main__':
                     sentences.extend([line.rstrip() for line in f])
         print(f"Extracted {len(sentences)} sentences.")
 
-        classifier = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", top_k=1, device=device)
+        classifier = pipeline("text-classification", model="Models/j-hartmann/emotion-english-distilroberta-base", top_k=1, device=device)
         emotion_to_sents = {"anger":set(), "disgust":set(), "fear":set(), "joy":set(), "neutral":set(), "sadness":set(), "surprise":set()}
         
         for i, result in tqdm(enumerate(classifier(data(sentences), truncation=True, max_length=512, padding=True, batch_size=64)), total=len(sentences)):

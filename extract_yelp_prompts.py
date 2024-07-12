@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
         print(f"Extracted {len(yelp_sents)} sentences.")
 
-        classifier = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", top_k=1, device=device)
+        classifier = pipeline("text-classification", model="Models/j-hartmann/emotion-english-distilroberta-base", top_k=1, device=device)
         emotion_to_prompts = {"anger":[], "disgust":[], "fear":[], "joy":[], "neutral":[], "sadness":[], "surprise":[]}
 
         for i, result in tqdm(enumerate(classifier(data(yelp_sents), truncation=True, max_length=512, padding=True, batch_size=256)), total=len(yelp_sents)):

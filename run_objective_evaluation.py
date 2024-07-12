@@ -47,7 +47,7 @@ if __name__ == '__main__':
         tales_data_dir = "/mount/arbeitsdaten/synthesis/bottts/IMS-Toucan/Corpora/Tales"
         emotion_to_sents_tales = extract_tales_sentences(tales_data_dir)
     
-        classifier = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", top_k=1, device=device)
+        classifier = pipeline("text-classification", model="Models/j-hartmann/emotion-english-distilroberta-base", top_k=1, device=device)
         test_sentences = {}
         test_sentences["dailydialogues"] = get_sorted_test_sentences(emotion_to_sents_dialog, classifier)
         test_sentences["tales"] = get_sorted_test_sentences(emotion_to_sents_tales, classifier)

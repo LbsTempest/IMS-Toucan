@@ -17,8 +17,8 @@ class EmotionRoBERTaWordEmbeddingExtractor(WordEmbeddingExtractor):
         super().__init__()
         if cache_dir:
             self.cache_dir = cache_dir
-        self.tokenizer = RobertaTokenizerFast.from_pretrained('j-hartmann/emotion-english-distilroberta-base', cache_dir=self.cache_dir)
-        self.model = RobertaModel.from_pretrained("j-hartmann/emotion-english-distilroberta-base", cache_dir=self.cache_dir).to(device)
+        self.tokenizer = RobertaTokenizerFast.from_pretrained('Models/j-hartmann/emotion-english-distilroberta-base', cache_dir=self.cache_dir)
+        self.model = RobertaModel.from_pretrained("Models/j-hartmann/emotion-english-distilroberta-base", cache_dir=self.cache_dir).to(device)
         self.model.eval()
         self.device = device
         self.tf = ArticulatoryCombinedTextFrontend(language="en")
