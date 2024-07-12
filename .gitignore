@@ -25,6 +25,7 @@ app.py
 gradio*
 *playground*
 run_phonemizer.py
+*model.txt
 
 *.pt
 *.out
