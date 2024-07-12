@@ -254,6 +254,7 @@ class ToucanTTSInterface(torch.nn.Module):
         """
         with torch.inference_mode():
             # * phonemizer with eSpeak-NG as backend.
+            # * get articulatory feature
             phones = self.text2phone.string_to_tensor(text, input_phonemes=input_is_phones).to(torch.device(self.device))
             if self.use_sent_emb and self.sentence_embedding is None:
                 if not silent:
