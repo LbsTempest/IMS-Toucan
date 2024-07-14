@@ -6,14 +6,14 @@ import torch
 import os
 from tqdm import tqdm
 import nltk
-nltk.download('punkt')
+# nltk.download('punkt')
 
 def data(sentences):
     for sent in sentences:
         yield sent
 
 if __name__ == '__main__':
-    device = 'cuda:5'
+    device = 'cuda:0'
 
     if not os.path.exists(os.path.join(PREPROCESSING_DIR, "Yelp", "emotion_prompts_full.pt")):
         yelp = load_dataset("yelp_review_full", split="train", cache_dir=os.path.join(PREPROCESSING_DIR, 'Yelp'))

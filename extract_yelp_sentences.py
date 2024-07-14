@@ -12,7 +12,7 @@ def data(sentences):
         yield sent
 
 if __name__ == '__main__':
-    device = 'cuda:5'
+    device = 'cuda:0'
 
     if not os.path.exists(os.path.join(PREPROCESSING_DIR, "Yelp", "emotion_sentences_full.pt")):
         yelp = load_dataset("yelp_review_full", split="test", cache_dir=os.path.join(PREPROCESSING_DIR, 'Yelp'))
