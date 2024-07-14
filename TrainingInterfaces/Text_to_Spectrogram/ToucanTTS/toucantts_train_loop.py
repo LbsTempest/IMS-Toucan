@@ -2,9 +2,12 @@ import os
 import random
 import time
 
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2"
+# os.environ["WORLD_SIZE"] = "1"
 import torch
 import torch.multiprocessing
 import wandb
+import numpy as np
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
@@ -37,6 +40,36 @@ def collate_and_pad(batch):
             [datapoint[10] for datapoint in batch])
 
 
+def linear_interpolate(tensor_1: torch.Tensor, tensor_2: torch.Tensor) -> torch.Tensor:
+    beta_distribution = torch.distributions.Beta(0.5, 0.5)
+    lambda_values = beta_distribution.sample((64, 1)).to("cuda")
+    interpolated_tensor = (1 - lambda_values) * tensor_1 + lambda_values * tensor_2
+
+    return interpolated_tensor
+
+
+def mix_speech_prompt_emotion(batch, sentence_embedding) -> tuple[list, torch.Tensor]:
+    batch[4], batch[5], batch[6] = batch[4].to("cuda"), batch[5].to("cuda"), batch[6].to("cuda")
+    for i, path in enumerate(batch[10]):
+        emotion = get_emotion_from_path(path)
+        if emotion == "neutral":
+            neutral_sentence_embedding = sentence_embedding[i]
+            neutral_length = batch[3][i]
+            neutran_duration = batch[4][i]
+            neutral_pitch = batch[6][i]
+            neutral_energy = batch[5][i]
+
+            batch[3] = linear_interpolate(batch[3], neutral_length).int()
+            batch[4] = linear_interpolate(batch[4], neutran_duration).int()
+            batch[6] = linear_interpolate(batch[6].squeeze(2), neutral_pitch.squeeze(1)).unsqueeze(2)
+            batch[5] = linear_interpolate(batch[5].squeeze(2), neutral_energy.squeeze(1)).unsqueeze(2)
+            sentence_embedding = linear_interpolate(sentence_embedding, neutral_sentence_embedding)
+
+            return batch, sentence_embedding
+
+    return batch, sentence_embedding
+
+
 def train_loop(net,
                train_dataset,
                device,
@@ -62,6 +95,13 @@ def train_loop(net,
     """
     see train loop arbiter for explanations of the arguments
     """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2"
+    # os.environ["WORLD_SIZE"] = "1"
+    # if torch.cuda.device_count() > 1:
+    #     print("multi gpu")
+    #     net = torch.nn.parallel.DataParallel(net, device_ids=[0, 1, 2, 3])
     net = net.to(device)
     if use_discriminator:
         discriminator = SpectrogramDiscriminator().to(device)
@@ -158,6 +198,8 @@ def train_loop(net,
             else:
                 word_embedding = None
                 sentence_lens = None
+
+            # batch, sentence_embedding = mix_speech_prompt_emotion(batch, sentence_embedding)
 
             l1_loss, duration_loss, pitch_loss, energy_loss, glow_loss, generated_spectrograms = net(
                 text_tensors=batch[0].to(device),
