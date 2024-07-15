@@ -36,7 +36,7 @@ class TTSWebUI:
                                 'Male 5': 33,
                                 'Male 6': 34}
         self.tts_interface = ToucanTTSInterface(device=gpu_id,
-                                                tts_model_path='Proposed',
+                                                tts_model_path='./Models/ToucanTTS_01_LibriTTS/best.pt',
                                                 faster_vocoder=True,
                                                 sent_emb_extractor=sent_emb_extractor)
         self.iface = gr.Interface(fn=self.read,
@@ -58,7 +58,8 @@ class TTSWebUI:
                                                        'Male 4',
                                                        'Male 5',
                                                        'Male 6'], type="value",
-                                                      value='Female 1', label="Select a Speaker")],
+                                                      value='Female 1', label="Select a Speaker"),
+                                          gr.Slider(minimum=0, maximum=1, step=0.01, value=0.5, label="Intensity")],
                                   outputs=[gr.Audio(type="numpy", label="Speech"),
                                            gr.Image(label="Visualization")],
                                   title=title,
@@ -67,12 +68,12 @@ class TTSWebUI:
                                   article=article)
         self.iface.launch()
 
-    def read(self, input, prompt, speaker):
+    def read(self, input, prompt, speaker, intensity):
         self.tts_interface.set_language("en")
         self.tts_interface.set_speaker_id(self.speaker_to_id[speaker])
-        self.tts_interface.set_sentence_embedding(prompt)
+        self.tts_interface.set_sentence_embedding(prompt, intensity)
         wav, fig = self.tts_interface(input, return_plot_as_filepath=True)
         return (24000, float2pcm(wav.cpu().numpy())), fig
 
 if __name__ == '__main__':
-    TTSWebUI(gpu_id="cpu")
+    TTSWebUI(gpu_id="cuda:0")
