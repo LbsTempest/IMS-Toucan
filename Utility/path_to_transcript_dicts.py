@@ -1,3 +1,4 @@
+import csv
 import glob
 import os
 import random
@@ -225,7 +226,8 @@ def build_path_to_transcript_dict_libritts():
 
 
 def build_path_to_transcript_dict_libritts_all_clean():
-    path_train = "/mount/resources/speech/corpora/LibriTTS_R/"  # using all files from the "clean" subsets from LibriTTS-R https://arxiv.org/abs/2305.18802
+    # path_train = "/mount/resources/speech/corpora/LibriTTS_R/"  # using all files from the "clean" subsets from LibriTTS-R https://arxiv.org/abs/2305.18802
+    path_train = "./Corpora/LibriTTS/train-clean-100"
     path_to_transcript = dict()
     for speaker in tqdm(os.listdir(path_train)):
         for chapter in os.listdir(os.path.join(path_train, speaker)):
@@ -333,9 +335,9 @@ def build_path_to_transcript_dict_libritts_other500():
 
 def build_path_to_transcript_dict_ljspeech():
     path_to_transcript = dict()
-    for transcript_file in tqdm(os.listdir("/mount/resources/speech/corpora/LJSpeech/16kHz/txt")):
-        with open("/mount/resources/speech/corpora/LJSpeech/16kHz/txt/" + transcript_file, 'r', encoding='utf8') as tf:
-            transcript = tf.read()
+    for transcript_file in tqdm(os.listdir("Corpora/LJspeech/LJSpeech-1.1/wavs")):
+        with open("Corpora/LJspeech/LJSpeech-1.1/metadata.csv", 'r', encoding='utf8') as cf:
+            transcript = csv.reader(cf)
         wav_path = "/mount/resources/speech/corpora/LJSpeech/16kHz/wav/" + transcript_file.rstrip(".txt") + ".wav"
         path_to_transcript[wav_path] = transcript
     
@@ -605,12 +607,12 @@ def build_path_to_transcript_dict_RAVDESS():
 
 
 def build_path_to_transcript_dict_ESDS():
-    root = "/mount/resources/speech/corpora/Emotional_Speech_Dataset_Singapore"
+    root = "./Corpora/ESD_Dataset/ESD_Dataset"
     path_to_transcript_dict = dict()
     for speaker_dir in os.listdir(root):
         if speaker_dir.startswith("00"):
             if int(speaker_dir) > 10:
-                with open(f"{root}/{speaker_dir}/fixed_unicode.txt", mode="r", encoding="utf8") as f:
+                with open(f"{root}/{speaker_dir}/{speaker_dir}.txt", mode="r", encoding="utf8") as f:
                     transcripts = f.read()
                 for line in transcripts.replace("\n\n", "\n").replace(",", ", ").split("\n"):
                     if line.strip() != "":
