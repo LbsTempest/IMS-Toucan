@@ -14,12 +14,12 @@ from Utility.storage_config import PREPROCESSING_DIR
 
 def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, use_wandb, wandb_resume_id):
     if gpu_id == "cpu":
-        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        # os.environ["CUDA_VISIBLE_DEVICES"] = ""
         device = torch.device("cpu")
 
     else:
-        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-        os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
+        # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        # os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
         device = torch.device(f"cuda")
 
     torch.manual_seed(131714)
@@ -28,7 +28,7 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, use_wandb, wandb
 
     print("Preparing")
 
-    name = "ToucanTTS_06s_ESDS_sent_emb_a11_emoBERTcls_xvect"
+    name = "ToucanTTS_06s_ESDS_sent_emb_a11_emoBERTcls"
     """
     a01: integrate before encoder
     a02: integrate before encoder and decoder
@@ -55,7 +55,8 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, use_wandb, wandb
     datasets = list()
 
     datasets.append(prepare_fastspeech_corpus(transcript_dict=build_path_to_transcript_dict_ESDS(),
-                                          corpus_dir=os.path.join(PREPROCESSING_DIR, "esds"),
+                                          corpus_dir=os.path.join(PREPROCESSING_DIR, "ESD_Dataset", "ESD_Dataset"),
+                                        #   corpus_dir=os.path.join(PREPROCESSING_DIR, "esds"),
                                           lang="en",
                                           save_imgs=False))
     
@@ -115,8 +116,8 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, use_wandb, wandb
         embed_type = "emoBERTcls"
         sent_embed_dim = 768
 
-    print(f'Loading sentence embeddings from {os.path.join(PREPROCESSING_DIR, "Yelp", f"emotion_prompts_large_sent_embs_{embed_type}.pt")}')
-    sent_embs = torch.load(os.path.join(PREPROCESSING_DIR, "Yelp", f"emotion_prompts_large_sent_embs_{embed_type}.pt"), map_location='cpu')
+    print(f'Loading sentence embeddings from {os.path.join(PREPROCESSING_DIR, "Yelp", f"emotion_prompts_balanced_10000_sent_embs_{embed_type}.pt")}')
+    sent_embs = torch.load(os.path.join(PREPROCESSING_DIR, "Yelp", f"emotion_prompts_balanced_10000_sent_embs_{embed_type}.pt"), map_location='cpu')
 
     sent_embed_encoder=False
     sent_embed_decoder=False
@@ -192,16 +193,16 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, use_wandb, wandb
     model = ToucanTTS(lang_embs=lang_embs, 
                     utt_embed_dim=utt_embed_dim,
                     sent_embed_dim=64 if "adapted" in name else sent_embed_dim,
-                    sent_embed_adaptation="noadapt" not in name,
-                    sent_embed_encoder=sent_embed_encoder,
-                    sent_embed_decoder=sent_embed_decoder,
-                    sent_embed_each=sent_embed_each,
-                    sent_embed_postnet=sent_embed_postnet,
-                    concat_sent_style=concat_sent_style,
-                    use_concat_projection=use_concat_projection,
-                    use_sent_style_loss="loss" in name,
-                    pre_embed="_pre" in name,
-                    style_sent=style_sent,
+                    # sent_embed_adaptation="noadapt" not in name,
+                    # sent_embed_encoder=sent_embed_encoder,
+                    # sent_embed_decoder=sent_embed_decoder,
+                    # sent_embed_each=sent_embed_each,
+                    # sent_embed_postnet=sent_embed_postnet,
+                    # concat_sent_style=concat_sent_style,
+                    # use_concat_projection=use_concat_projection,
+                    # use_sent_style_loss="loss" in name,
+                    # pre_embed="_pre" in name,
+                    # style_sent=style_sent,
                     static_speaker_embed="_static" in name)
 
     if use_wandb:
@@ -214,18 +215,18 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, use_wandb, wandb
                datasets=[train_set],
                device=device,
                save_directory=save_dir,
-               batch_size=16,
+               batch_size=64,
                eval_lang="en",
                path_to_checkpoint=resume_checkpoint,
-               path_to_embed_model=os.path.join(MODELS_DIR, "EmoMulti_Embedding", "embedding_function.pt"),
+               path_to_embed_model=os.path.join(MODELS_DIR, "Embedding", "embedding_function.pt"),
                fine_tune=finetune,
                resume=resume,
                use_wandb=use_wandb,
-               sent_embs=sent_embs,
-               random_emb=True,
-               emovdb=True,
-               replace_utt_sent_emb=replace_utt_sent_emb,
-               use_adapted_embs="adapted" in name,
+               emotion_sent_embs=sent_embs,
+            #    random_emb=True,
+            #    emovdb=True,
+            #    replace_utt_sent_emb=replace_utt_sent_emb,
+            #    use_adapted_embs="adapted" in name,
                path_to_xvect=path_to_xvect,
                static_speaker_embed="_static" in name)
     if use_wandb:
