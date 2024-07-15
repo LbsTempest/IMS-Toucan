@@ -6,7 +6,9 @@ import matplotlib.pyplot as plt
 import sounddevice
 import soundfile
 import torch
+import torch.nn.functional as F
 import torchaudio
+from transformers import AutoTokenizer, AutoModel
 
 from InferenceInterfaces.InferenceArchitectures.InferenceAvocodo import HiFiGANGenerator
 from InferenceInterfaces.InferenceArchitectures.InferenceBigVGAN import BigVGAN
@@ -23,7 +25,7 @@ class ToucanTTSInterface(torch.nn.Module):
 
     def __init__(self,
                  device="cpu",  # device that everything computes on. If a cuda device is available, this can speed things up by an order of magnitude.
-                 tts_model_path=os.path.join(MODELS_DIR, "ToucanTTS_Meta", "best.pt"),  # path to the ToucanTTS checkpoint or just a shorthand if run standalone
+                 tts_model_path=os.path.join(MODELS_DIR, "ToucanTTS_06s_ESDS_sent_emb_a11_emoBERTcls", "best.pt"),  # path to the ToucanTTS checkpoint or just a shorthand if run standalone
                  embedding_model_path=None,
                  vocoder_model_path=None,  # path to the hifigan/avocodo/bigvgan checkpoint
                  faster_vocoder=True,  # whether to use the quicker HiFiGAN or the better BigVGAN
@@ -96,10 +98,10 @@ class ToucanTTSInterface(torch.nn.Module):
                         print("Loading sent emb architecture")
                         self.use_lang_id = False
                         self.use_sent_emb = True
-                        self.static_speaker_embed = True
+                        self.static_speaker_embed = False
                         self.phone2mel = ToucanTTS(weights=checkpoint["model"],
                                                     lang_embs=None, 
-                                                    utt_embed_dim=512,
+                                                    utt_embed_dim=64,
                                                     sent_embed_dim=768,
                                                     static_speaker_embed=self.static_speaker_embed)
         with torch.no_grad():
@@ -148,6 +150,16 @@ class ToucanTTSInterface(torch.nn.Module):
             self.mel2wav = BigVGAN(path_to_weights=vocoder_model_path).to(torch.device(device))
         self.mel2wav.remove_weight_norm()
 
+        ########################################
+        #  * load emotion intensity extractor  #
+        ########################################
+        self.tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
+        self.inner_intensity_extractor = AutoModel.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
+        self.emotion_embeddings = {"neutral": None, "anger": None, "disgust": None, "fear": None, "joy": None, "sadness": None, "surprise": None, "surprise": None}
+        # {"N": "neutral", "A": "anger", "D": "disgust", "F": "fear", "H": "joy", "Sa": "sadness", "Su+": "surprise", "Su-": "surprise"}
+        for key in self.emotion_embeddings:
+            self.emotion_embeddings[key] = self.compute_emotion_sentence_embedding(key)
+
         ################################
         #  * set defaults              #
         ################################
@@ -194,8 +206,28 @@ class ToucanTTSInterface(torch.nn.Module):
             spec_len = torch.LongTensor([len(spec)])
             self.default_utterance_embedding = self.style_embedding_function(spec.unsqueeze(0).to(self.device),
                                                                             spec_len.unsqueeze(0).to(self.device)).squeeze()
+            
+    def compute_emotion_sentence_embedding(self, prompt:str):
+        encoded_input = self.tokenizer(prompt, padding=True, truncation=True, return_tensors='pt')
+        with torch.no_grad():
+            model_output = self.inner_intensity_extractor(**encoded_input)
+        token_embeddings = model_output[0] #First element of model_output contains all token embeddings
+        input_mask_expanded = encoded_input["attention_mask"].unsqueeze(-1).expand(token_embeddings.size()).float()
+        sentence_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+        sentence_embeddings = F.normalize(sentence_embeddings, p=2, dim=1)
+        return sentence_embeddings
 
-    def set_sentence_embedding(self, prompt:str, silent=True):
+    def set_inner_intensity(self, text:str, prompt:str):
+        cos_sim: dict[str, torch.Tensor] = self.emotion_embeddings
+        prompt_embedding = self.compute_emotion_sentence_embedding(prompt)
+        for key in self.emotion_embeddings:
+            cos_sim[key] = F.cosine_similarity(prompt_embedding, self.emotion_embeddings[key], dim=0)
+        max_key = max(cos_sim, key=cos_sim.get)
+        max_value = cos_sim[max_key].item()
+        self.emotion = max_key
+        self.intensity = max_value
+
+    def set_sentence_embedding(self, prompt:str, intensity: float, silent=True):
         """
         * Embed prompt into sentence embedding space.
         """
@@ -203,7 +235,9 @@ class ToucanTTSInterface(torch.nn.Module):
             if not silent:
                 print(f"Using sentence embedding of given prompt: {prompt}")
             prompt_embedding = self.sentence_embedding_extractor.encode([prompt]).squeeze().to(self.device)
-            self.sentence_embedding = prompt_embedding
+            neutral_prompt_embedding = self.sentence_embedding_extractor.encode(["neutral"]).squeeze().to(self.device)
+            self.sentence_embedding = intensity * prompt_embedding + (1 - intensity) * neutral_prompt_embedding
+            # self.sentence_embedding = prompt_embedding
         else:
             print("Skipping setting sentence embedding.")
 
