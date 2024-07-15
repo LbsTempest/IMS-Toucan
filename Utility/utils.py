@@ -763,7 +763,7 @@ def get_emotion_from_path(path):
             emotion = "neutral"
         if emotion == "SAD":
             emotion = "sadness"
-    if "Emotional_Speech_Dataset_Singapore" in path:
+    if "ESD" in path:
         emotion = os.path.basename(os.path.dirname(path)).lower()
         if emotion == "angry":
             emotion = "anger"
